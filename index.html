@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Interactive GPU inference memory estimator for LLM parameters, precision, KV cache, context and concurrency">
+<title>LLM GPU Inference Calculator</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0b1220;color:#edf2fc;color-scheme:dark}*{box-sizing:border-box}body{margin:0}main{max-width:1060px;margin:auto;padding:32px 18px 60px}h1{font-size:clamp(1.8rem,4vw,3rem);margin:10px 0}h2{margin:0 0 18px;font-size:1.22rem}p{line-height:1.6;color:#afbdd5}.eyebrow{color:#80b7ff;font-size:.8rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.lead{font-size:1.1rem;max-width:800px}.panel{background:#152139;border:1px solid #2c3e5c;border-radius:18px;padding:24px;margin:20px 0}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.grid label{display:block;color:#b4c5df;font-size:.84rem;font-weight:650;margin:0 0 8px}select,input{background:#0b172b;color:#fff;border:1px solid #496087;border-radius:9px;padding:12px;width:100%;font:inherit}input:focus,select:focus,button:focus-visible{outline:2px solid #7cbcff;outline-offset:2px}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.metric{padding:16px;border:1px solid #324969;border-radius:12px;background:#101c31}.metric small{display:block;color:#aebed8;margin-bottom:8px}.metric strong{font-size:clamp(1.1rem,2.7vw,1.9rem);font-variant-numeric:tabular-nums}.bar{display:flex;height:18px;background:#34425d;border-radius:20px;overflow:hidden;margin-top:23px}.bar .w{background:#528fff}.bar .k{background:#f5b65b}.legend{display:flex;gap:22px;font-size:.85rem;color:#cad4e7;margin-top:10px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}.warning{padding:14px 16px;background:#242233;border-left:3px solid #f2b45c;border-radius:7px;font-size:.88rem}.footer{font-size:.82rem}button{background:#357df4;border:0;color:white;padding:12px 18px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer}.good{color:#8fd8c8}code{color:#bed7ff}@media(max-width:730px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:16px}}@media(max-width:420px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}}
+</style></head><body><main>
+<div class="eyebrow">AI infrastructure · engineering calculator</div>
+<h1>LLM GPU Inference Calculator</h1>
+<p class="lead">Explore how model parameters, quantization, context tokens and concurrent requests drive GPU memory demand. Compare scenarios and share your configuration. No backend or user data collection.</p>
+<section class="panel"><h2>Workload configuration</h2><div class="grid">
+<div><label for="model">Model parameters</label><select id="model"><option value="7">7B</option><option value="13">13B</option><option value="70" selected>70B</option><option value="175">175B</option></select></div>
+<div><label for="precision">Weight precision</label><select id="precision"><option value="2" selected>BF16/FP16 · 2 bytes</option><option value="1">INT8 · 1 byte</option><option value="0.5">INT4 · 0.5 bytes</option></select></div>
+<div><label for="context">Cached context tokens / request</label><select id="context"><option value="4096">4K</option><option value="32768" selected>32K</option><option value="131072">128K</option><option value="262144">256K</option></select></div>
+<div><label for="concurrency">Active concurrent requests</label><input type="number" id="concurrency" value="8" min="1" max="10000" step="1"></div>
+<div><label for="gpu">Physical GPU memory</label><select id="gpu"><option value="24">24 GB</option><option value="48">48 GB</option><option value="80" selected>80 GB</option><option value="96">96 GB</option><option value="141">141 GB</option></select></div>
+<div><label for="usable">Usable memory fraction</label><select id="usable"><option value="0.75">75%</option><option value="0.85" selected>85%</option><option value="0.9">90%</option></select></div>
+</div></section>
+<section class="panel"><h2>Estimated inference memory</h2><div class="metrics">
+<div class="metric"><small>Model weights</small><strong id="weights">—</strong></div>
+<div class="metric"><small>KV cache / request</small><strong id="kvone">—</strong></div>
+<div class="metric"><small>Total KV cache</small><strong id="kvall">—</strong></div>
+<div class="metric"><small>Combined modeled memory</small><strong id="total">—</strong></div>
+<div class="metric"><small>Idealized minimum GPU count</small><strong id="count">—</strong></div>
+<div class="metric"><small>Modeled cache share</small><strong id="kvshare">—</strong></div>
+</div><div class="bar" role="img" aria-label="Memory composition: blue weight storage, orange KV cache"><div class="w" id="wbar"></div><div class="k" id="kbar"></div></div>
+<div class="legend"><span><i class="dot" style="background:#528fff"></i>Model weights</span><span><i class="dot" style="background:#f5b65b"></i>KV cache</span></div>
+<p class="warning"><strong>Capacity floor, not deployment sizing.</strong> Assumes perfectly pooled GPU memory and simplified architecture presets. Actual GPU requirements depend on model architecture, sharding, runtime buffers, fragmentation, attention implementation, throughput, network topology, and latency targets.</p><button id="share" type="button">Copy scenario link</button>
+</section>
+<section class="panel"><h2>Why inference uses more GPUs</h2>
+<p><strong>Weights:</strong> Model parameters must reside in accessible memory. Lower-precision weights reduce their footprint, though real quantization adds metadata overhead.</p>
+<p><strong>KV cache:</strong> Context length and concurrent sequences increase attention-state memory even when model parameters stay unchanged. Estimates assume BF16 KV-cache values.</p>
+<p><strong>Prefill:</strong> Input prompt processing is highly parallel and often compute-intensive; long contexts increase attention work and time to first token.</p>
+<p><strong>Decode:</strong> Autoregressive token generation repeatedly executes Transformer layers. At low batch sizes it is frequently limited by memory bandwidth.</p>
+<p><strong>Scaling:</strong> Quantization, better attention kernels, cache reuse, batching, smaller specialized models, and optimized sharding may help before adding GPUs.</p></section>
+<p class="footer">Model footprint = parameters (billions) × bytes/weight (decimal GB). KV = 2 × layers × KV heads × head dimension × cached tokens × 2 bytes × concurrency / 10⁹. Representative Transformer shapes are illustrative, not tied to specific production models. This tool does not predict token throughput, TTFT, or inference cost. No telemetry, cookies or API requests.</p>
+</main><script>
+const shapes={7:{l:32,h:8,d:128},13:{l:40,h:40,d:128},70:{l:80,h:8,d:128},175:{l:96,h:96,d:128}};
+const ids=['model','precision','context','concurrency','gpu','usable'];const el=id=>document.getElementById(id);
+function compute(){
+ const m=+el('model').value,b=+el('precision').value,n=+el('context').value,c=Math.max(1,Math.min(10000,Math.floor(+el('concurrency').value||1))),gpu=+el('gpu').value,usable=+el('usable').value,s=shapes[m];
+ const w=m*b,k=2*s.l*s.h*s.d*n*2/1e9,ka=k*c,t=w+ka,g=Math.ceil(t/(gpu*usable));
+ el('weights').textContent=w.toFixed(1)+' GB';el('kvone').textContent=k.toFixed(2)+' GB';el('kvall').textContent=ka.toFixed(1)+' GB';el('total').textContent=t.toFixed(1)+' GB';el('count').textContent=g.toLocaleString();el('kvshare').textContent=(100*ka/t).toFixed(1)+'%';
+ el('wbar').style.width=(100*w/t)+'%';el('kbar').style.width=(100*ka/t)+'%';
+ const u=new URL(location.href);ids.forEach(id=>u.searchParams.set(id,id==='concurrency'?String(c):el(id).value));history.replaceState(null,'',u);
+}
+const q=new URLSearchParams(location.search);
+ids.forEach(id=>{const v=q.get(id);if(v!==null){if(id==='concurrency'&&/^\d{1,5}$/.test(v))el(id).value=v;else if(id!=='concurrency'&&[...el(id).options].some(o=>o.value===v))el(id).value=v;}el(id).addEventListener('input',compute)});
+el('share').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);el('share').textContent='Copied link!';}catch{prompt('Copy scenario URL:',location.href)}});compute();
+</script></body></html>
